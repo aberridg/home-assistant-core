@@ -2,7 +2,7 @@
 
 from datetime import timedelta
 import logging
-from typing import Any
+from typing import Any, cast
 
 import speedtest
 
@@ -38,10 +38,9 @@ class SpeedTestDataCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     def update_servers(self) -> None:
         """Update list of test servers."""
         test_servers = self.api.get_servers()
-        test_servers_list = []
-        for servers in test_servers.values():
-            for server in servers:
-                test_servers_list.append(server)
+        test_servers_list = [
+            server for servers in test_servers.values() for server in servers
+        ]
         for server in sorted(
             test_servers_list,
             key=lambda server: (
@@ -69,7 +68,7 @@ class SpeedTestDataCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         )
         self.api.download()
         self.api.upload()
-        return self.api.results.dict()
+        return cast(dict[str, Any], self.api.results.dict())
 
     async def _async_update_data(self) -> dict[str, Any]:
         """Update Speedtest data."""

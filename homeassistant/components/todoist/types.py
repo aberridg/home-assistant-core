@@ -1,4 +1,5 @@
 """Types for the Todoist component."""
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -19,7 +20,7 @@ class ProjectData(TypedDict):
     """Dict representing project data."""
 
     name: str
-    id: int | None
+    id: str | None
 
 
 class CustomProject(TypedDict):
