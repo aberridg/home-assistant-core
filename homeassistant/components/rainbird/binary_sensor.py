@@ -1,4 +1,5 @@
 """Support for Rain Bird Irrigation system LNK WiFi Module."""
+
 from __future__ import annotations
 
 import logging
@@ -8,64 +9,51 @@ from homeassistant.components.binary_sensor import (
     BinarySensorEntityDescription,
 )
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
-from homeassistant.helpers.update_coordinator import (
-    CoordinatorEntity,
-    DataUpdateCoordinator,
-)
+from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import SENSOR_TYPE_RAINDELAY, SENSOR_TYPE_RAINSENSOR
+from .coordinator import RainbirdUpdateCoordinator
+from .types import RainbirdConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
 
 
-BINARY_SENSOR_TYPES: tuple[BinarySensorEntityDescription, ...] = (
-    BinarySensorEntityDescription(
-        key=SENSOR_TYPE_RAINSENSOR,
-        name="Rainsensor",
-        icon="mdi:water",
-    ),
-    BinarySensorEntityDescription(
-        key=SENSOR_TYPE_RAINDELAY,
-        name="Raindelay",
-        icon="mdi:water-off",
-    ),
+RAIN_SENSOR_ENTITY_DESCRIPTION = BinarySensorEntityDescription(
+    key="rainsensor",
+    translation_key="rainsensor",
 )
 
 
-async def async_setup_platform(
+async def async_setup_entry(
     hass: HomeAssistant,
-    config: ConfigType,
-    async_add_entities: AddEntitiesCallback,
-    discovery_info: DiscoveryInfoType | None = None,
+    config_entry: RainbirdConfigEntry,
+    async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
-    """Set up a Rain Bird sensor."""
-    if discovery_info is None:
-        return
-
-    async_add_entities(
-        [
-            RainBirdSensor(discovery_info[description.key], description)
-            for description in BINARY_SENSOR_TYPES
-        ],
-        True,
-    )
+    """Set up entry for a Rain Bird binary_sensor."""
+    coordinator = config_entry.runtime_data.coordinator
+    async_add_entities([RainBirdSensor(coordinator, RAIN_SENSOR_ENTITY_DESCRIPTION)])
 
 
-class RainBirdSensor(CoordinatorEntity, BinarySensorEntity):
+class RainBirdSensor(CoordinatorEntity[RainbirdUpdateCoordinator], BinarySensorEntity):
     """A sensor implementation for Rain Bird device."""
+
+    _attr_has_entity_name = True
 
     def __init__(
         self,
-        coordinator: DataUpdateCoordinator,
+        coordinator: RainbirdUpdateCoordinator,
         description: BinarySensorEntityDescription,
     ) -> None:
         """Initialize the Rain Bird sensor."""
         super().__init__(coordinator)
         self.entity_description = description
+        if coordinator.unique_id is not None:
+            self._attr_unique_id = f"{coordinator.unique_id}-{description.key}"
+            self._attr_device_info = coordinator.device_info
+        else:
+            self._attr_name = f"{coordinator.device_name} Rainsensor"
 
     @property
     def is_on(self) -> bool | None:
         """Return True if entity is on."""
-        return None if self.coordinator.data is None else bool(self.coordinator.data)
+        return self.coordinator.data.rain

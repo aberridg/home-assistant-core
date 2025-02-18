@@ -1,4 +1,5 @@
 """Bitcoin information service that uses blockchain.com."""
+
 from __future__ import annotations
 
 from datetime import timedelta
@@ -8,23 +9,19 @@ from blockchain import exchangerates, statistics
 import voluptuous as vol
 
 from homeassistant.components.sensor import (
-    PLATFORM_SCHEMA,
+    PLATFORM_SCHEMA as SENSOR_PLATFORM_SCHEMA,
     SensorEntity,
     SensorEntityDescription,
 )
 from homeassistant.const import CONF_CURRENCY, CONF_DISPLAY_OPTIONS, UnitOfTime
 from homeassistant.core import HomeAssistant
-import homeassistant.helpers.config_validation as cv
+from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
 _LOGGER = logging.getLogger(__name__)
 
-ATTRIBUTION = "Data provided by blockchain.com"
-
 DEFAULT_CURRENCY = "USD"
-
-ICON = "mdi:currency-btc"
 
 SCAN_INTERVAL = timedelta(minutes=5)
 
@@ -130,7 +127,7 @@ SENSOR_TYPES: tuple[SensorEntityDescription, ...] = (
 
 OPTION_KEYS = [desc.key for desc in SENSOR_TYPES]
 
-PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
+PLATFORM_SCHEMA = SENSOR_PLATFORM_SCHEMA.extend(
     {
         vol.Required(CONF_DISPLAY_OPTIONS, default=[]): vol.All(
             cv.ensure_list, [vol.In(OPTION_KEYS)]
@@ -167,10 +164,12 @@ def setup_platform(
 class BitcoinSensor(SensorEntity):
     """Representation of a Bitcoin sensor."""
 
-    _attr_attribution = ATTRIBUTION
-    _attr_icon = ICON
+    _attr_attribution = "Data provided by blockchain.com"
+    _attr_icon = "mdi:currency-btc"
 
-    def __init__(self, data, currency, description: SensorEntityDescription):
+    def __init__(
+        self, data: BitcoinData, currency: str, description: SensorEntityDescription
+    ) -> None:
         """Initialize the sensor."""
         self.entity_description = description
         self.data = data
@@ -231,12 +230,10 @@ class BitcoinSensor(SensorEntity):
 class BitcoinData:
     """Get the latest data and update the states."""
 
-    def __init__(self):
-        """Initialize the data object."""
-        self.stats = None
-        self.ticker = None
+    stats: statistics.Stats
+    ticker: dict[str, exchangerates.Currency]
 
-    def update(self):
+    def update(self) -> None:
         """Get the latest data from blockchain.com."""
 
         self.stats = statistics.get()

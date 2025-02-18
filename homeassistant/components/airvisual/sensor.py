@@ -1,4 +1,5 @@
 """Support for AirVisual air quality sensors."""
+
 from __future__ import annotations
 
 from homeassistant.components.sensor import (
@@ -15,20 +16,19 @@ from homeassistant.const import (
     CONCENTRATION_MICROGRAMS_PER_CUBIC_METER,
     CONCENTRATION_PARTS_PER_BILLION,
     CONCENTRATION_PARTS_PER_MILLION,
+    CONF_COUNTRY,
     CONF_LATITUDE,
     CONF_LONGITUDE,
     CONF_SHOW_ON_MAP,
     CONF_STATE,
-    PERCENTAGE,
-    UnitOfTemperature,
 )
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers.entity import EntityCategory
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
-from . import AirVisualEntity
-from .const import CONF_CITY, CONF_COUNTRY, DOMAIN
+from . import AirVisualConfigEntry
+from .const import CONF_CITY
+from .entity import AirVisualEntity
 
 ATTR_CITY = "city"
 ATTR_COUNTRY = "country"
@@ -37,23 +37,13 @@ ATTR_POLLUTANT_UNIT = "pollutant_unit"
 ATTR_REGION = "region"
 
 SENSOR_KIND_AQI = "air_quality_index"
-SENSOR_KIND_BATTERY_LEVEL = "battery_level"
-SENSOR_KIND_CO2 = "carbon_dioxide"
-SENSOR_KIND_HUMIDITY = "humidity"
 SENSOR_KIND_LEVEL = "air_pollution_level"
-SENSOR_KIND_PM_0_1 = "particulate_matter_0_1"
-SENSOR_KIND_PM_1_0 = "particulate_matter_1_0"
-SENSOR_KIND_PM_2_5 = "particulate_matter_2_5"
 SENSOR_KIND_POLLUTANT = "main_pollutant"
-SENSOR_KIND_SENSOR_LIFE = "sensor_life"
-SENSOR_KIND_TEMPERATURE = "temperature"
-SENSOR_KIND_VOC = "voc"
 
 GEOGRAPHY_SENSOR_DESCRIPTIONS = (
     SensorEntityDescription(
         key=SENSOR_KIND_LEVEL,
         name="Air pollution level",
-        icon="mdi:gauge",
         device_class=SensorDeviceClass.ENUM,
         options=[
             "good",
@@ -69,13 +59,11 @@ GEOGRAPHY_SENSOR_DESCRIPTIONS = (
         key=SENSOR_KIND_AQI,
         name="Air quality index",
         device_class=SensorDeviceClass.AQI,
-        native_unit_of_measurement="AQI",
         state_class=SensorStateClass.MEASUREMENT,
     ),
     SensorEntityDescription(
         key=SENSOR_KIND_POLLUTANT,
         name="Main pollutant",
-        icon="mdi:chemical-weapon",
         device_class=SensorDeviceClass.ENUM,
         options=["co", "n2", "o3", "p1", "p2", "s2"],
         translation_key="pollutant_label",
@@ -83,70 +71,6 @@ GEOGRAPHY_SENSOR_DESCRIPTIONS = (
 )
 GEOGRAPHY_SENSOR_LOCALES = {"cn": "Chinese", "us": "U.S."}
 
-NODE_PRO_SENSOR_DESCRIPTIONS = (
-    SensorEntityDescription(
-        key=SENSOR_KIND_AQI,
-        name="Air quality index",
-        device_class=SensorDeviceClass.AQI,
-        native_unit_of_measurement="AQI",
-        state_class=SensorStateClass.MEASUREMENT,
-    ),
-    SensorEntityDescription(
-        key=SENSOR_KIND_BATTERY_LEVEL,
-        name="Battery",
-        device_class=SensorDeviceClass.BATTERY,
-        entity_category=EntityCategory.DIAGNOSTIC,
-        native_unit_of_measurement=PERCENTAGE,
-    ),
-    SensorEntityDescription(
-        key=SENSOR_KIND_CO2,
-        name="C02",
-        device_class=SensorDeviceClass.CO2,
-        native_unit_of_measurement=CONCENTRATION_PARTS_PER_MILLION,
-        state_class=SensorStateClass.MEASUREMENT,
-    ),
-    SensorEntityDescription(
-        key=SENSOR_KIND_HUMIDITY,
-        name="Humidity",
-        device_class=SensorDeviceClass.HUMIDITY,
-        native_unit_of_measurement=PERCENTAGE,
-    ),
-    SensorEntityDescription(
-        key=SENSOR_KIND_PM_0_1,
-        name="PM 0.1",
-        device_class=SensorDeviceClass.PM1,
-        native_unit_of_measurement=CONCENTRATION_MICROGRAMS_PER_CUBIC_METER,
-        state_class=SensorStateClass.MEASUREMENT,
-    ),
-    SensorEntityDescription(
-        key=SENSOR_KIND_PM_1_0,
-        name="PM 1.0",
-        device_class=SensorDeviceClass.PM10,
-        native_unit_of_measurement=CONCENTRATION_MICROGRAMS_PER_CUBIC_METER,
-        state_class=SensorStateClass.MEASUREMENT,
-    ),
-    SensorEntityDescription(
-        key=SENSOR_KIND_PM_2_5,
-        name="PM 2.5",
-        device_class=SensorDeviceClass.PM25,
-        native_unit_of_measurement=CONCENTRATION_MICROGRAMS_PER_CUBIC_METER,
-        state_class=SensorStateClass.MEASUREMENT,
-    ),
-    SensorEntityDescription(
-        key=SENSOR_KIND_TEMPERATURE,
-        name="Temperature",
-        device_class=SensorDeviceClass.TEMPERATURE,
-        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
-        state_class=SensorStateClass.MEASUREMENT,
-    ),
-    SensorEntityDescription(
-        key=SENSOR_KIND_VOC,
-        name="VOC",
-        device_class=SensorDeviceClass.VOLATILE_ORGANIC_COMPOUNDS,
-        native_unit_of_measurement=CONCENTRATION_PARTS_PER_MILLION,
-        state_class=SensorStateClass.MEASUREMENT,
-    ),
-)
 
 STATE_POLLUTANT_LABEL_CO = "co"
 STATE_POLLUTANT_LABEL_N2 = "n2"
@@ -182,10 +106,12 @@ POLLUTANT_UNITS = {
 
 
 async def async_setup_entry(
-    hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
+    hass: HomeAssistant,
+    entry: AirVisualConfigEntry,
+    async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up AirVisual sensors based on a config entry."""
-    coordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator = entry.runtime_data
     async_add_entities(
         AirVisualGeographySensor(coordinator, entry, description, locale)
         for locale in GEOGRAPHY_SENSOR_LOCALES

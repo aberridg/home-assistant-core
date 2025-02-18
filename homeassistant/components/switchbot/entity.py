@@ -1,4 +1,5 @@
 """An abstract class common to all Switchbot entities."""
+
 from __future__ import annotations
 
 from collections.abc import Mapping
@@ -13,7 +14,8 @@ from homeassistant.components.bluetooth.passive_update_coordinator import (
 from homeassistant.const import ATTR_CONNECTIONS
 from homeassistant.core import callback
 from homeassistant.helpers import device_registry as dr
-from homeassistant.helpers.entity import DeviceInfo, ToggleEntity
+from homeassistant.helpers.device_registry import DeviceInfo
+from homeassistant.helpers.entity import ToggleEntity
 
 from .const import MANUFACTURER
 from .coordinator import SwitchbotDataUpdateCoordinator
@@ -21,10 +23,11 @@ from .coordinator import SwitchbotDataUpdateCoordinator
 _LOGGER = logging.getLogger(__name__)
 
 
-class SwitchbotEntity(PassiveBluetoothCoordinatorEntity):
+class SwitchbotEntity(
+    PassiveBluetoothCoordinatorEntity[SwitchbotDataUpdateCoordinator]
+):
     """Generic entity encapsulating common features of Switchbot device."""
 
-    coordinator: SwitchbotDataUpdateCoordinator
     _device: SwitchbotDevice
     _attr_has_entity_name = True
 
@@ -58,7 +61,7 @@ class SwitchbotEntity(PassiveBluetoothCoordinatorEntity):
         return self.coordinator.device.parsed_data
 
     @property
-    def extra_state_attributes(self) -> Mapping[Any, Any]:
+    def extra_state_attributes(self) -> Mapping[str, Any]:
         """Return the state attributes."""
         return {"last_run_success": self._last_run_success}
 
